@@ -35,7 +35,7 @@ jobs:
           cargo install --path circom
 
       - name: Install C++ build dependencies
-        run: sudo apt-get install -y nasm libgmp-dev
+        run: sudo apt-get install -y nasm libgmp-dev nlohmann-json3-dev
 
       - name: Clone circuit-registry
         run: git clone https://github.com/zkmopro/circuit-registry.git
