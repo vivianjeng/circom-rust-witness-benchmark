@@ -47,9 +47,11 @@ jobs:
           cd circuit-registry/multiplier2
           circom --c --wasm --rust multiplier2.circom
           cd ../keccak256
-          circom --c --wasm --rust keccak256_256_test.circom
+          npm install
+          circom --c --wasm --rust -l node_modules keccak256_256_test.circom
           cd ../rsa
-          circom --c --wasm --rust main.circom
+          npm install
+          circom --c --wasm --rust -l node_modules main.circom
 
       - name: Build C++ witnesses
         run: |
