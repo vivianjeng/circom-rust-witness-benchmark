@@ -45,18 +45,12 @@ jobs:
           cd circuit-registry/multiplier2
           circom --c --wasm --rust multiplier2.circom
 
-      - name: Run C++ witness
+      - name: Build C++ witness
         run: |
           cd circuit-registry/multiplier2/multiplier2_cpp
           make
-          ./multiplier2 ../input.json witness.wtns
 
-      - name: Run JS witness
-        run: |
-          cd circuit-registry/multiplier2/multiplier2_js
-          node generate_witness.js multiplier2.wasm ../input.json witness.wtns
-
-      - name: Run Rust witness
+      - name: Build Rust witness
         run: |
           mkdir -p circuit-registry/multiplier2/multiplier2_rust/examples
           cat > circuit-registry/multiplier2/multiplier2_rust/examples/witness.rs << 'EOF'
@@ -73,4 +67,7 @@ jobs:
               }
           }
           EOF
-          cargo run --release --example witness --manifest-path circuit-registry/multiplier2/multiplier2_rust/Cargo.toml
+          cargo build --release --example witness --manifest-path circuit-registry/multiplier2/multiplier2_rust/Cargo.toml
+
+      - name: Benchmark witness generation
+        run: python3 benchmark.py circuit-registry/multiplier2 10
