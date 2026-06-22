@@ -11,7 +11,7 @@ RUNS = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 CIRCUITS = [
     {"label": "multiplier2",        "dir": "circuit-registry/multiplier2", "name": "multiplier2"},
     {"label": "keccak256_256_test", "dir": "circuit-registry/keccak256",   "name": "keccak256_256_test"},
-    {"label": "rsa",                "dir": "circuit-registry/rsa",          "name": "main"},
+    {"label": "rsa",                "dir": "circuit-registry/rsa",          "name": "main_c"},
 ]
 
 

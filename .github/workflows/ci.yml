@@ -51,20 +51,20 @@ jobs:
           circom --c --wasm --rust -l node_modules keccak256_256_test.circom
           cd ../rsa
           npm install
-          circom --c --wasm --rust -l node_modules main.circom
+          circom --c --wasm --rust -l node_modules rsa_main.circom
 
       - name: Build C++ witnesses
         run: |
           make -C circuit-registry/multiplier2/multiplier2_cpp
           make -C circuit-registry/keccak256/keccak256_256_test_cpp
-          make -C circuit-registry/rsa/main_cpp
+          make -C circuit-registry/rsa/main_c_cpp
 
       - name: Build Rust witnesses
         run: |
           for entry in \
             "circuit-registry/multiplier2:multiplier2" \
             "circuit-registry/keccak256:keccak256_256_test" \
-            "circuit-registry/rsa:main"; do
+            "circuit-registry/rsa:main_c"; do
             DIR="${entry%%:*}"
             NAME="${entry##*:}"
             RUST_DIR="${DIR}/${NAME}_rust"
