@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install circom
+        run: |
+          git clone https://github.com/zkmopro/circom.git
+          cd circom
+          cargo install --path circom
+
+      - name: Install C++ build dependencies
+        run: sudo apt-get install -y nasm libgmp-dev
+
+      - name: Clone circuit-registry
+        run: git clone https://github.com/zkmopro/circuit-registry.git
+
+      - name: Compile multiplier2 circuit
+        run: |
+          cd circuit-registry/multiplier2
+          circom --c --wasm --rust multiplier2.circom
+
+      - name: Run C++ witness
+        run: |
+          cd circuit-registry/multiplier2/multiplier2_cpp
+          make
+          ./multiplier2 ../input.json witness.wtns
+
+      - name: Run JS witness
+        run: |
+          cd circuit-registry/multiplier2/multiplier2_js
+          node generate_witness.js multiplier2.wasm ../input.json witness.wtns
+
+      - name: Run Rust witness
+        run: |
+          mkdir -p circuit-registry/multiplier2/multiplier2_rust/examples
+          cat > circuit-registry/multiplier2/multiplier2_rust/examples/witness.rs << 'EOF'
+          use malachite::integer::Integer;
+          use multiplier2::create_witness_calculator;
+
+          fn main() {
+              let mut ctx = create_witness_calculator();
+              ctx.set_input("a", Integer::from(2u32));
+              ctx.set_input("b", Integer::from(3u32));
+              let witness = ctx.get_witness_vec();
+              for (i, w) in witness.iter().enumerate() {
+                  println!("w[{}] = {}", i, w);
+              }
+          }
+          EOF
+          cargo run --release --example witness --manifest-path circuit-registry/multiplier2/multiplier2_rust/Cargo.toml
