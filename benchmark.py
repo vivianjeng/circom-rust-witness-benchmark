@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Benchmark witness generation time for C++, JS, and Rust."""
+"""Benchmark witness generation time for C++, JS, and Rust across circuits."""
 
 import subprocess
 import time
 import sys
 from pathlib import Path
 
-CIRCUIT_DIR = sys.argv[1] if len(sys.argv) > 1 else "circuit-registry/multiplier2"
-RUNS = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+RUNS = int(sys.argv[1]) if len(sys.argv) > 1 else 5
+
+CIRCUITS = [
+    {"label": "multiplier2",        "dir": "circuit-registry/multiplier2", "name": "multiplier2"},
+    {"label": "keccak256_256_test", "dir": "circuit-registry/keccak256",   "name": "keccak256_256_test"},
+    {"label": "rsa",                "dir": "circuit-registry/rsa",          "name": "main"},
+]
 
 
 def run_timed(cmd, cwd=None):
@@ -16,23 +21,26 @@ def run_timed(cmd, cwd=None):
     return (time.perf_counter() - start) * 1000
 
 
-def benchmark(name, cmd, cwd=None):
+def benchmark(cmd, cwd=None):
     times = [run_timed(cmd, cwd=cwd) for _ in range(RUNS)]
-    avg, mn, mx = sum(times) / len(times), min(times), max(times)
-    print(f"  avg: {avg:8.2f} ms  min: {mn:8.2f} ms  max: {mx:8.2f} ms")
+    return sum(times) / len(times), min(times), max(times)
 
 
-rust_bin = str(Path(f"{CIRCUIT_DIR}/multiplier2_rust/target/release/examples/witness").resolve())
+print(f"=== Witness Generation Benchmark ({RUNS} runs) ===\n")
+print(f"{'Circuit':<22} {'Method':<6} {'avg':>10}  {'min':>10}  {'max':>10}")
+print("-" * 64)
 
-print(f"=== Witness Generation Benchmark ({RUNS} runs) ===")
-print(f"Circuit: {CIRCUIT_DIR}")
-print()
+for circuit in CIRCUITS:
+    label, d, name = circuit["label"], circuit["dir"], circuit["name"]
+    input_json = str(Path(f"{d}/input.json").resolve())
+    rust_bin = str(Path(f"{d}/{name}_rust/target/release/examples/witness").resolve())
 
-print("[C++]")
-benchmark("C++", ["./multiplier2", "../input.json", "witness.wtns"], cwd=f"{CIRCUIT_DIR}/multiplier2_cpp")
+    avg, mn, mx = benchmark([f"./{name}", "../input.json", "witness.wtns"], cwd=f"{d}/{name}_cpp")
+    print(f"{label:<22} {'C++':<6} {avg:>9.2f}ms  {mn:>9.2f}ms  {mx:>9.2f}ms")
 
-print("[JS]")
-benchmark("JS", ["node", "generate_witness.js", "multiplier2.wasm", "../input.json", "witness.wtns"], cwd=f"{CIRCUIT_DIR}/multiplier2_js")
+    avg, mn, mx = benchmark(["node", "generate_witness.js", f"{name}.wasm", "../input.json", "witness.wtns"], cwd=f"{d}/{name}_js")
+    print(f"{'':22} {'JS':<6} {avg:>9.2f}ms  {mn:>9.2f}ms  {mx:>9.2f}ms")
 
-print("[Rust]")
-benchmark("Rust", [rust_bin])
+    avg, mn, mx = benchmark([rust_bin, input_json])
+    print(f"{'':22} {'Rust':<6} {avg:>9.2f}ms  {mn:>9.2f}ms  {mx:>9.2f}ms")
+    print()

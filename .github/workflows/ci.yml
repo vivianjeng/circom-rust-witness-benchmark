@@ -42,34 +42,37 @@ jobs:
       - name: Clone circuit-registry
         run: git clone https://github.com/zkmopro/circuit-registry.git
 
-      - name: Compile multiplier2 circuit
+      - name: Compile circuits
         run: |
           cd circuit-registry/multiplier2
           circom --c --wasm --rust multiplier2.circom
+          cd ../keccak256
+          circom --c --wasm --rust keccak256_256_test.circom
+          cd ../rsa
+          circom --c --wasm --rust main.circom
 
-      - name: Build C++ witness
+      - name: Build C++ witnesses
         run: |
-          cd circuit-registry/multiplier2/multiplier2_cpp
-          make
+          make -C circuit-registry/multiplier2/multiplier2_cpp
+          make -C circuit-registry/keccak256/keccak256_256_test_cpp
+          make -C circuit-registry/rsa/main_cpp
 
-      - name: Build Rust witness
+      - name: Build Rust witnesses
         run: |
-          mkdir -p circuit-registry/multiplier2/multiplier2_rust/examples
-          cat > circuit-registry/multiplier2/multiplier2_rust/examples/witness.rs << 'EOF'
-          use malachite::integer::Integer;
-          use multiplier2::create_witness_calculator;
-
-          fn main() {
-              let mut ctx = create_witness_calculator();
-              ctx.set_input("a", Integer::from(2u32));
-              ctx.set_input("b", Integer::from(3u32));
-              let witness = ctx.get_witness_vec();
-              for (i, w) in witness.iter().enumerate() {
-                  println!("w[{}] = {}", i, w);
-              }
-          }
-          EOF
-          cargo build --release --example witness --manifest-path circuit-registry/multiplier2/multiplier2_rust/Cargo.toml
+          for entry in \
+            "circuit-registry/multiplier2:multiplier2" \
+            "circuit-registry/keccak256:keccak256_256_test" \
+            "circuit-registry/rsa:main"; do
+            DIR="${entry%%:*}"
+            NAME="${entry##*:}"
+            RUST_DIR="${DIR}/${NAME}_rust"
+            mkdir -p "${RUST_DIR}/examples"
+            sed "s/CIRCUIT_CRATE/${NAME}/g" witness_template.rs > "${RUST_DIR}/examples/witness.rs"
+            if ! grep -q 'serde_json' "${RUST_DIR}/Cargo.toml"; then
+              sed -i '/^\[dependencies\]/a serde_json = "1"' "${RUST_DIR}/Cargo.toml"
+            fi
+            cargo build --release --example witness --manifest-path "${RUST_DIR}/Cargo.toml"
+          done
 
       - name: Benchmark witness generation
-        run: python3 benchmark.py circuit-registry/multiplier2 10
+        run: python3 benchmark.py 5
