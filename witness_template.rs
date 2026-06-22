@@ -2,11 +2,16 @@ use std::str::FromStr;
 use malachite::integer::Integer;
 use CIRCUIT_CRATE::create_witness_calculator;
 
-fn parse_val(v: &serde_json::Value) -> Integer {
-    match v {
-        serde_json::Value::Number(n) => Integer::from_str(&n.to_string()).unwrap(),
-        serde_json::Value::String(s) => Integer::from_str(s).unwrap(),
-        _ => panic!("unsupported value type: {:?}", v),
+fn flatten(prefix: &str, val: &serde_json::Value) -> Vec<(String, Integer)> {
+    match val {
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .enumerate()
+            .flat_map(|(i, v)| flatten(&format!("{}[{}]", prefix, i), v))
+            .collect(),
+        serde_json::Value::Number(n) => vec![(prefix.to_string(), Integer::from_str(&n.to_string()).unwrap())],
+        serde_json::Value::String(s) => vec![(prefix.to_string(), Integer::from_str(s).unwrap())],
+        _ => panic!("unsupported value type: {:?}", val),
     }
 }
 
@@ -17,12 +22,8 @@ fn main() {
 
     let mut ctx = create_witness_calculator();
     for (key, val) in json.as_object().expect("input must be a JSON object") {
-        if let serde_json::Value::Array(arr) = val {
-            for (i, v) in arr.iter().enumerate() {
-                ctx.set_input(&format!("{}[{}]", key, i), parse_val(v));
-            }
-        } else {
-            ctx.set_input(key, parse_val(val));
+        for (signal, value) in flatten(key, val) {
+            ctx.set_input(&signal, value);
         }
     }
     let _ = ctx.get_witness_vec();
