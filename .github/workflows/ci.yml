@@ -15,6 +15,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Cache Rust dependencies
         uses: actions/cache@v4
@@ -34,6 +36,12 @@ jobs:
             git clone https://github.com/zkmopro/circom.git
             cd circom
             cargo install --path circom
+          fi
+
+      - name: Install wasm-bindgen-cli
+        run: |
+          if ! command -v wasm-bindgen &> /dev/null; then
+            cargo install wasm-bindgen-cli --version 0.2.125 --locked
           fi
 
       - name: Install C++ build dependencies
@@ -73,7 +81,31 @@ jobs:
             if ! grep -q 'serde_json' "${RUST_DIR}/Cargo.toml"; then
               sed -i '/^\[dependencies\]/a serde_json = "1"' "${RUST_DIR}/Cargo.toml"
             fi
+            # Make rayon target-conditional so the crate also compiles for wasm32
+            if grep -q '^rayon' "${RUST_DIR}/Cargo.toml"; then
+              sed -i '/^rayon/d' "${RUST_DIR}/Cargo.toml"
+              printf '\n[target.'"'"'cfg(not(target_arch = "wasm32"))'"'"'.dependencies]\nrayon = "1"\n' \
+                >> "${RUST_DIR}/Cargo.toml"
+            fi
             cargo build --release --example witness --manifest-path "${RUST_DIR}/Cargo.toml"
+          done
+
+      - name: Build Rust-WASM witnesses
+        run: |
+          cargo build --release --target wasm32-unknown-unknown \
+            --manifest-path wasm-witnesses/Cargo.toml
+          for entry in \
+            "multiplier2:multiplier2_wasm" \
+            "keccak256:keccak256_wasm" \
+            "rsa:rsa_wasm"; do
+            DIR="${entry%%:*}"
+            NAME="${entry##*:}"
+            mkdir -p "wasm-witnesses/${DIR}/wasm_out"
+            wasm-bindgen \
+              "wasm-witnesses/target/wasm32-unknown-unknown/release/${NAME}.wasm" \
+              --out-dir "wasm-witnesses/${DIR}/wasm_out" \
+              --target nodejs \
+              --out-name "${NAME}"
           done
 
       - name: Benchmark witness generation
