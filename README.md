@@ -9,6 +9,8 @@ Benchmark witness generation time across four methods for circom circuits:
 | **Rust** | Native binary from circom `--rust` output |
 | **Rust-WASM** | Rust witness compiled to `wasm32-unknown-unknown` via `wasm-bindgen`, called from Node.js |
 
+The `--rust` flag is implemented in a [fork of circom](https://github.com/zkmopro/circom) — see [the implementing commit](https://github.com/zkmopro/circom/commit/59a2b1c63ae18cd6d765318d26c4c587c279019f). It generates a self-contained Rust crate with the witness calculator embedded as Rust source, with no C FFI or WASM runtime dependency.
+
 ## Circuits
 
 | Circuit | Description |
