@@ -87,6 +87,9 @@ jobs:
               printf '\n[target.'"'"'cfg(not(target_arch = "wasm32"))'"'"'.dependencies]\nrayon = "1"\n' \
                 >> "${RUST_DIR}/Cargo.toml"
             fi
+            # Guard compute_witness_batch (which uses rayon) so it only compiles for non-wasm targets
+            sed -i 's/^pub fn compute_witness_batch(/#[cfg(not(target_arch = "wasm32"))]\npub fn compute_witness_batch(/' \
+              "${RUST_DIR}/src/lib.rs"
             cargo build --release --example witness --manifest-path "${RUST_DIR}/Cargo.toml"
           done
 
