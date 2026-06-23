@@ -1,0 +1,3 @@
+[workspace]
+members = ["multiplier2", "keccak256", "rsa"]
+resolver = "2"

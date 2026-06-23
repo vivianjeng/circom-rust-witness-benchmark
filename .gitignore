@@ -1,0 +1,15 @@
+# Rust build artifacts
+target/
+**/target/
+
+# wasm-bindgen generated JS/wasm bindings
+**/wasm_out/
+
+# circom-generated circuit artifacts (cloned at CI time)
+circuit-registry/
+
+# Node
+node_modules/
+
+# Witness output
+*.wtns
